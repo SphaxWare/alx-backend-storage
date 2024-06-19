@@ -2,7 +2,18 @@
 """exercise.py"""
 import redis
 import uuid
+import functools
 from typing import Union, Callable, Optional
+
+
+def count_calls(method: Callable) -> Callable:
+    """ Decorator to count calls to the method"""
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs) -> str:
+        """ Wrapper function to increment the call count"""
+        self._redis.incr(method.__qualname__)
+        return method(self, *args, **kwargs)
+    return wrapper
 
 
 class Cache:
@@ -39,12 +50,9 @@ class Cache:
 if __name__ == "__main__":
     cache = Cache()
 
-    TEST_CASES = {
-        b"foo": None,
-        123: int,
-        "bar": lambda d: d.decode("utf-8")
-    }
+    cache.store(b"first")
+    print(cache.get(cache.store.__qualname__))
 
-    for value, fn in TEST_CASES.items():
-        key = cache.store(value)
-        assert cache.get(key, fn=fn) == value
+    cache.store(b"second")
+    cache.store(b"third")
+    print(cache.get(cache.store.__qualname__))
