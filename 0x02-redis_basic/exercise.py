@@ -89,6 +89,7 @@ class Cache:
 
 
 if __name__ == "__main__":
+    """Main"""
     cache = Cache()
     s1 = cache.store("foo")
     s2 = cache.store("bar")
