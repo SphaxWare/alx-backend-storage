@@ -1,32 +1,53 @@
 #!/usr/bin/env python3
-"""Caching request module"""
+"""web.py"""
 import redis
 import requests
-from functools import wraps
 from typing import Callable
+from functools import wraps
 
+# Initialize the Redis client
+redis_client = redis.Redis()
 
-def track_get_page(fn: Callable) -> Callable:
-    """ Decorator for get_page"""
-    @wraps(fn)
+def count_requests(method: Callable) -> Callable:
+    """Decorator to count requests to a particular URL."""
+    @wraps(method)
     def wrapper(url: str) -> str:
-        """
-        Wrapper that check whether a url's data is cached
-        and tracks how many times get_page is called
-        """
-        client = redis.Redis()
-        client.incr(f'count:{url}')
-        cached_page = client.get(f'{url}')
-        if cached_page:
-            return cached_page.decode('utf-8')
-        response = fn(url)
-        client.set(f'{url}', response, 10)
-        return response
+        """Wrapper function to count the request and call the method."""
+        count_key = f"count:{url}"
+        redis_client.incr(count_key)
+        return method(url)
     return wrapper
 
+def cache_page(method: Callable) -> Callable:
+    """Decorator to cache the HTML content of a URL."""
+    @wraps(method)
+    def wrapper(url: str) -> str:
+        """Wrapper function to cache the page content."""
+        cache_key = f"cache:{url}"
+        cached_content = redis_client.get(cache_key)
+        if cached_content:
+            return cached_content.decode('utf-8')
+        
+        # Call the original method to get the HTML content
+        content = method(url)
+        # Cache the content with an expiration time of 10 seconds
+        redis_client.setex(cache_key, 10, content)
+        return content
+    return wrapper
 
-@track_get_page
+@count_requests
+@cache_page
 def get_page(url: str) -> str:
-    """ Makes a http request to a given endpoint"""
+    """Get the HTML content of a particular URL and cache it."""
     response = requests.get(url)
     return response.text
+
+if __name__ == "__main__":
+    test_url = "http://slowwly.robertomurray.co.uk"
+    print(get_page(test_url))
+    print(get_page(test_url))
+    print(get_page(test_url))
+    
+    # Check the count
+    count_key = f"count:{test_url}"
+    print(f"Access count for {test_url}: {redis_client.get(count_key).decode('utf-8')}")
