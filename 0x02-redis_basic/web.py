@@ -8,6 +8,7 @@ from functools import wraps
 # Initialize the Redis client
 redis_client = redis.Redis()
 
+
 def count_requests(method: Callable) -> Callable:
     """Decorator to count requests to a particular URL."""
     @wraps(method)
@@ -18,6 +19,7 @@ def count_requests(method: Callable) -> Callable:
         return method(url)
     return wrapper
 
+
 def cache_page(method: Callable) -> Callable:
     """Decorator to cache the HTML content of a URL."""
     @wraps(method)
@@ -27,7 +29,7 @@ def cache_page(method: Callable) -> Callable:
         cached_content = redis_client.get(cache_key)
         if cached_content:
             return cached_content.decode('utf-8')
-        
+
         # Call the original method to get the HTML content
         content = method(url)
         # Cache the content with an expiration time of 10 seconds
@@ -35,19 +37,10 @@ def cache_page(method: Callable) -> Callable:
         return content
     return wrapper
 
+
 @count_requests
 @cache_page
 def get_page(url: str) -> str:
     """Get the HTML content of a particular URL and cache it."""
     response = requests.get(url)
     return response.text
-
-if __name__ == "__main__":
-    test_url = "http://slowwly.robertomurray.co.uk"
-    print(get_page(test_url))
-    print(get_page(test_url))
-    print(get_page(test_url))
-    
-    # Check the count
-    count_key = f"count:{test_url}"
-    print(f"Access count for {test_url}: {redis_client.get(count_key).decode('utf-8')}")
