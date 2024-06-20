@@ -38,6 +38,23 @@ def call_history(method: Callable) -> Callable:
     return wrapper
 
 
+def replay(method: Callable):
+    """Display the history of calls of a particular function."""
+    redis_instance = method.__self__._redis
+    method_name = method.__qualname__
+
+    inputs_key = f"{method_name}:inputs"
+    outputs_key = f"{method_name}:outputs"
+
+    inputs = redis_instance.lrange(inputs_key, 0, -1)
+    outputs = redis_instance.lrange(outputs_key, 0, -1)
+
+    print(f"{method_name} was called {len(inputs)} times:")
+    for input_args, output in zip(inputs, outputs):
+        print(f"{method_name}(*{input_args.decode('utf-8')}) -> "
+              f"{output.decode('utf-8')}")
+
+
 class Cache:
     def __init__(self):
         """Initialize the Redis client and flush the database."""
@@ -69,3 +86,11 @@ class Cache:
     def get_int(self, key: str) -> Optional[int]:
         """Retrieve an integer from Redis."""
         return self.get(key, fn=int)
+
+
+if __name__ == "__main__":
+    cache = Cache()
+    s1 = cache.store("foo")
+    s2 = cache.store("bar")
+    s3 = cache.store(42)
+    replay(cache.store)
