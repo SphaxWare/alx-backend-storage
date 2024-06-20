@@ -86,12 +86,3 @@ class Cache:
     def get_int(self, key: str) -> Optional[int]:
         """Retrieve an integer from Redis."""
         return self.get(key, fn=int)
-
-
-if __name__ == "__main__":
-    """Main"""
-    cache = Cache()
-    s1 = cache.store("foo")
-    s2 = cache.store("bar")
-    s3 = cache.store(42)
-    replay(cache.store)
